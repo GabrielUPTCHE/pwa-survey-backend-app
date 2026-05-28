@@ -1,7 +1,8 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.security;
 
-import jakarta.servlet.http.Cookie;
+import com.survey.springboot.pwa.app.springboot_survey_app.config.AppProperties;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,26 +12,42 @@ public class CookieUtils {
     @Value("${jwt.time.expiration:86400000}")
     private long expirationMs;
 
+    @Autowired
+    private AppProperties appProperties;
+
     public void addTokenCookie(HttpServletResponse response, String token) {
-        Cookie cookie = new Cookie("token", token);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge((int) (expirationMs / 1000));
-        // SameSite=Lax via header (Cookie API no lo expone directamente en servlet)
-        response.addHeader("Set-Cookie",
-                "token=" + token +
-                "; Path=/" +
-                "; HttpOnly" +
-                "; Max-Age=" + (expirationMs / 1000) +
-                "; SameSite=Lax");
+        String sameSite = appProperties.getCookie().getSameSite();
+        boolean secure = appProperties.getCookie().isSecure();
+
+        StringBuilder cookie = new StringBuilder()
+                .append("token=").append(token)
+                .append("; Path=/")
+                .append("; HttpOnly")
+                .append("; Max-Age=").append(expirationMs / 1000)
+                .append("; SameSite=").append(sameSite);
+
+        if (secure) {
+            cookie.append("; Secure");
+        }
+
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 
     public void clearTokenCookie(HttpServletResponse response) {
-        response.addHeader("Set-Cookie",
-                "token=" +
-                "; Path=/" +
-                "; HttpOnly" +
-                "; Max-Age=0" +
-                "; SameSite=Lax");
+        String sameSite = appProperties.getCookie().getSameSite();
+        boolean secure = appProperties.getCookie().isSecure();
+
+        StringBuilder cookie = new StringBuilder()
+                .append("token=")
+                .append("; Path=/")
+                .append("; HttpOnly")
+                .append("; Max-Age=0")
+                .append("; SameSite=").append(sameSite);
+
+        if (secure) {
+            cookie.append("; Secure");
+        }
+
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }
