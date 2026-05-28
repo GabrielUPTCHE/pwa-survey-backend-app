@@ -1,4 +1,5 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.security.filtersJwt;
+
 import com.survey.springboot.pwa.app.springboot_survey_app.security.jwt.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,18 +12,20 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.util.Collections;
-
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
+
     @Autowired
     private JwtUtils jwtUtils;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-       String token = null;
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String token = null;
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("token".equals(cookie.getName())) {
@@ -31,11 +34,14 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 }
             }
         }
-        if(token != null && jwtUtils.isValidateToken(token)){
-            String email = jwtUtils.getUserNameFromToken(token);
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+        if (token != null && jwtUtils.isValidateToken(token)) {
+            String subject = jwtUtils.getUserNameFromToken(token);
+            UsernamePasswordAuthenticationToken auth =
+                    new UsernamePasswordAuthenticationToken(subject, null, Collections.emptyList());
+            SecurityContextHolder.getContext().setAuthentication(auth);
         }
+
         filterChain.doFilter(request, response);
     }
 }
