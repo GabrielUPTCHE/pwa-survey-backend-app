@@ -1,7 +1,7 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.controllers;
 
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.TipoDocumentoResponse;
-import com.survey.springboot.pwa.app.springboot_survey_app.repositories.TipoDocumentoRepository;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.repository.DocumentTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,15 +17,15 @@ import java.util.stream.Collectors;
 public class TipoDocumentoController {
 
     @Autowired
-    private TipoDocumentoRepository tipoDocumentoRepository;
+    private DocumentTypeRepository documentTypeRepository;
 
     @GetMapping
     public ResponseEntity<List<TipoDocumentoResponse>> getAll() {
-        List<TipoDocumentoResponse> result = tipoDocumentoRepository.findAll().stream()
+        List<TipoDocumentoResponse> result = documentTypeRepository.findAll().stream()
                 .map(t -> {
                     TipoDocumentoResponse r = new TipoDocumentoResponse();
-                    r.setIdTipoDocumento(t.getIdTipoDocumento());
-                    r.setNombreDocumento(t.getNombreDocumento());
+                    r.setIdTipoDocumento(t.getId());
+                    r.setNombreDocumento(t.getName());
                     return r;
                 })
                 .collect(Collectors.toList());

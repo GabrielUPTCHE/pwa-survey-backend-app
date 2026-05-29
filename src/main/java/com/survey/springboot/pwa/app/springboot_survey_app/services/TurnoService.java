@@ -1,73 +1,84 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.services;
 
-import com.survey.springboot.pwa.app.springboot_survey_app.documents.RutaVisita;
-import com.survey.springboot.pwa.app.springboot_survey_app.documents.Sujeto;
-import com.survey.springboot.pwa.app.springboot_survey_app.documents.Turno;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.RutaVisitaResponse;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.TurnoResponse;
-import com.survey.springboot.pwa.app.springboot_survey_app.repositories.RutaVisitaRepository;
-import com.survey.springboot.pwa.app.springboot_survey_app.repositories.SujetoRepository;
-import com.survey.springboot.pwa.app.springboot_survey_app.repositories.TurnoRepository;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.models.entity.ShiftSchedule;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.models.entity.Subject;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.models.entity.VisitRoute;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.repository.ShiftScheduleRepository;
+import com.survey.springboot.pwa.app.springboot_survey_app.persistence.repository.VisitRouteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class TurnoService {
 
-    @Autowired private TurnoRepository turnoRepository;
-    @Autowired private RutaVisitaRepository rutaVisitaRepository;
-    @Autowired private SujetoRepository sujetoRepository;
+    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
-    public List<TurnoResponse> getTurnosByFecha(String fecha) {
-        List<Turno> turnos = turnoRepository.findByFecha(fecha);
+    @Autowired private ShiftScheduleRepository shiftScheduleRepository;
+    @Autowired private VisitRouteRepository visitRouteRepository;
 
-        Map<String, Sujeto> sujetoByIdSujeto = sujetoRepository.findAll().stream()
-                .collect(Collectors.toMap(Sujeto::getIdSujeto, s -> s, (a, b) -> a));
+    /** Turnos del encuestador autenticado para una fecha, con sus rutas de visita. */
+    @Transactional(readOnly = true)
+    public List<TurnoResponse> getTurnosByFecha(String fecha, String numeroIdentificacion) {
+        LocalDate date = LocalDate.parse(fecha);
+        List<ShiftSchedule> shifts =
+                shiftScheduleRepository.findByUser_NumberIdentificationAndDate(numeroIdentificacion, date);
 
-        return turnos.stream().map(turno -> {
+        return shifts.stream().map(ss -> {
             TurnoResponse tr = new TurnoResponse();
-            tr.setProgramacionTurnos(turno.getProgramacionTurnos());
-            tr.setHoraInicio(turno.getHoraInicio());
-            tr.setHoraFin(turno.getHoraFin());
+            tr.setProgramacionTurnos(String.valueOf(ss.getId()));
+            tr.setHoraInicio(ss.getStartTime() != null ? ss.getStartTime().format(HORA) : null);
+            tr.setHoraFin(ss.getEndTime() != null ? ss.getEndTime().format(HORA) : null);
 
-            List<RutaVisita> rutas = rutaVisitaRepository.findByIdTurno(turno.getId());
-            List<RutaVisitaResponse> rutasResp = rutas.stream()
-                    .map(rv -> toRutaResponse(rv, sujetoByIdSujeto))
-                    .collect(Collectors.toList());
-            tr.setRutasVisitas(rutasResp);
+            List<RutaVisitaResponse> rutas = visitRouteRepository.findByShiftSchedule_Id(ss.getId())
+                    .stream().map(this::toRutaResponse).collect(Collectors.toList());
+            tr.setRutasVisitas(rutas);
             return tr;
         }).collect(Collectors.toList());
     }
 
-    public List<RutaVisitaResponse> getRecientes() {
-        Map<String, Sujeto> sujetoByIdSujeto = sujetoRepository.findAll().stream()
-                .collect(Collectors.toMap(Sujeto::getIdSujeto, s -> s, (a, b) -> a));
-
-        return rutaVisitaRepository.findTop5ByOrderByFechaProgramadaDesc().stream()
-                .map(rv -> toRutaResponse(rv, sujetoByIdSujeto))
-                .collect(Collectors.toList());
+    /** Últimas visitas del encuestador autenticado (para la pantalla de inicio). */
+    @Transactional(readOnly = true)
+    public List<RutaVisitaResponse> getRecientes(String numeroIdentificacion) {
+        return visitRouteRepository
+                .findTop10ByShiftSchedule_User_NumberIdentificationOrderByScheduledDateDesc(numeroIdentificacion)
+                .stream().map(this::toRutaResponse).collect(Collectors.toList());
     }
 
-    private RutaVisitaResponse toRutaResponse(RutaVisita rv, Map<String, Sujeto> sujetoMap) {
+    private RutaVisitaResponse toRutaResponse(VisitRoute vr) {
         RutaVisitaResponse r = new RutaVisitaResponse();
-        r.setIdRutas(rv.getIdRutas());
-        r.setEstado(rv.getEstado());
-        r.setFechaProgramada(rv.getFechaProgramada());
+        r.setIdRutas(String.valueOf(vr.getId()));
+        r.setEstado(estado(vr));
+        r.setFechaProgramada(vr.getScheduledDate() != null ? vr.getScheduledDate().toString() : null);
 
-        Optional.ofNullable(sujetoMap.get(rv.getIdSujeto())).ifPresent(s -> {
+        Subject s = vr.getSubject();
+        if (s != null) {
             RutaVisitaResponse.SujetoInfo info = new RutaVisitaResponse.SujetoInfo();
-            info.setRazonSocial(s.getRazonSocial());
-            info.setBarrio(s.getBarrio());
-            info.setDireccionFisica(s.getDireccionFisica());
+            info.setIdSujeto(String.valueOf(s.getId()));
+            info.setRazonSocial(s.getBusinessName());
+            info.setBarrio(s.getNeighborhood());
+            info.setDireccionFisica(s.getPhysicalAddress());
             info.setNit(s.getNit());
-            info.setZona(s.getZona());
+            info.setZona(s.getZone());
             r.setSujeto(info);
-        });
+        }
         return r;
+    }
+
+    /** Normaliza el estado a las etiquetas que espera la PWA. */
+    private String estado(VisitRoute vr) {
+        String raw = vr.getStatus() == null ? "" : vr.getStatus().trim().toLowerCase();
+        if (raw.contains("complet")) return "Completado";
+        if (raw.contains("progres") || raw.contains("curso")) return "En Progreso";
+        if (raw.contains("futuro")) return "Futuro";
+        return "Pendiente";
     }
 }

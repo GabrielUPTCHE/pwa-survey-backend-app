@@ -23,6 +23,9 @@ public class RutaVisitaResponse {
 
     @Data
     public static class SujetoInfo {
+        @JsonProperty("id_sujeto")
+        private String idSujeto;
+
         @JsonProperty("razon_social")
         private String razonSocial;
 

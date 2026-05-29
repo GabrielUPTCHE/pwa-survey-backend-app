@@ -1,17 +1,16 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.controllers;
 
+import com.survey.springboot.pwa.app.springboot_survey_app.dto.SujetoCreateRequest;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.SujetoResponse;
 import com.survey.springboot.pwa.app.springboot_survey_app.services.SujetoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** GET /api/sujetos?q= */
+/** GET /api/sujetos?q=  |  POST /api/sujetos (registrar local) */
 @RestController
 @RequestMapping("/api/sujetos")
 public class SujetoController {
@@ -25,5 +24,10 @@ public class SujetoController {
             return ResponseEntity.ok(List.of());
         }
         return ResponseEntity.ok(sujetoService.search(q));
+    }
+
+    @PostMapping
+    public ResponseEntity<SujetoResponse> create(@RequestBody SujetoCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(sujetoService.create(request));
     }
 }
