@@ -46,6 +46,23 @@ public class AuthService {
         cookieUtils.clearTokenCookie(response);
     }
 
+    public void changePassword(String numeroIdentificacion, String currentPassword, String newPassword) {
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres");
+        }
+
+        Usuario usuario = usuarioRepository
+                .findByNumeroIdentificacion(numeroIdentificacion)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        if (!passwordEncoder.matches(currentPassword, usuario.getContrasena())) {
+            throw new RuntimeException("Credenciales inválidas");
+        }
+
+        usuario.setContrasena(passwordEncoder.encode(newPassword));
+        usuarioRepository.save(usuario);
+    }
+
     public UserResponse verify(String numeroIdentificacion) {
         return usuarioRepository
                 .findByNumeroIdentificacion(numeroIdentificacion)

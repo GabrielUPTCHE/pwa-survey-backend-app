@@ -1,5 +1,6 @@
 package com.survey.springboot.pwa.app.springboot_survey_app.controllers;
 
+import com.survey.springboot.pwa.app.springboot_survey_app.dto.ChangePasswordRequest;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.LoginRequest;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.UserResponse;
 import com.survey.springboot.pwa.app.springboot_survey_app.dto.VerifyResponse;
@@ -40,6 +41,19 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse response) {
         authService.logout(response);
+        return ResponseEntity.ok().build();
+    }
+
+    /** POST /api/auth/change-password — usuario autenticado cambia su propia contraseña */
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest request,
+                                               Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
+        String numeroIdentificacion = (String) authentication.getPrincipal();
+        authService.changePassword(numeroIdentificacion,
+                request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok().build();
     }
 }
